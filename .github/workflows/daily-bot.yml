@@ -1,0 +1,54 @@
+name: 24/7 Green Streak Bot
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Ye daily raat ko 12 baje (UTC) chalega
+  workflow_dispatch: # Ye button manual run ke liye hai
+
+jobs:
+  daily-grind:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Git Setup
+        run: |
+          # YAHAN APNA USERNAME AUR EMAIL DALO
+          git config --global user.name "dragaditya"
+          git config --global user.email "waghaditya312@gmail.com"
+
+      - name: Generate Commits
+        run: |
+          # Logic: Daily 3 se 10 commits ke beech karega
+          COUNT=$(( ( RANDOM % 8 ) + 3 ))
+          echo "Target for today: $COUNT commits."
+
+          # Messages ki list
+          msgs=(
+            "Minor logic fix" 
+            "Refactoring middleware" 
+            "Update readme docs" 
+            "Optimizing database query" 
+            "Fixing edge case" 
+            "Code cleanup" 
+            "Automated dependency update" 
+            "Bug fix #102"
+            "Testing new module"
+          )
+
+          # Loop shuru
+          for ((i=1; i<=COUNT; i++))
+          do
+            RAND_MSG=${msgs[$RANDOM % ${#msgs[@]}]}
+            
+            # File me kuch likhna padega taaki change detect ho
+            echo "Log: $(date) - Work ID: $RANDOM" >> activity_log.txt
+            
+            git add activity_log.txt
+            git commit -m "$RAND_MSG"
+          done
+
+      - name: Push Changes
+        run: git push
