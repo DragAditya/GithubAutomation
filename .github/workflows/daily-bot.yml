@@ -2,52 +2,95 @@ name: 24/7 Green Streak Bot
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Ye daily raat ko 12 baje (UTC) chalega
-  workflow_dispatch: # Ye button manual run ke liye hai
+    - cron: "0 */3 * * *"   # Har 3 ghante (UTC)
+  workflow_dispatch:
 
 jobs:
   daily-grind:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Git Setup
         run: |
-          # YAHAN APNA USERNAME AUR EMAIL DALO
           git config --global user.name "dragaditya"
           git config --global user.email "waghaditya312@gmail.com"
 
-      - name: Generate Commits
+      - name: Human Delay (Session Start)
         run: |
-          # Logic: Daily 3 se 10 commits ke beech karega
-          COUNT=$(( ( RANDOM % 8 ) + 3 ))
-          echo "Target for today: $COUNT commits."
+          sleep $((RANDOM % 2700))   # 0–45 min delay
 
-          # Messages ki list
-          msgs=(
-            "Minor logic fix" 
-            "Refactoring middleware" 
-            "Update readme docs" 
-            "Optimizing database query" 
-            "Fixing edge case" 
-            "Code cleanup" 
-            "Automated dependency update" 
-            "Bug fix #102"
-            "Testing new module"
-          )
+      - name: Smart Commit Engine
+        run: |
+          HOUR=$(date +%H)
+          DAY=$(date +%d)
 
-          # Loop shuru
+          # -----------------------------
+          # 9️⃣ Commit message tone shift
+          # -----------------------------
+          if [ $DAY -le 10 ]; then
+            MSGS=("Initial refactor" "Improve structure" "Cleanup logic")
+          elif [ $DAY -le 20 ]; then
+            MSGS=("Optimize flow" "Minor fixes" "Improve stability")
+          else
+            MSGS=("update" "fix" "changes")
+          fi
+
+          # -----------------------------
+          # Time-based intensity
+          # -----------------------------
+          if [ $HOUR -ge 6 ] && [ $HOUR -le 18 ]; then
+            COUNT=$((RANDOM % 6 + 8))   # Day = more work
+          else
+            COUNT=$((RANDOM % 3 + 2))   # Night = low work
+          fi
+
+          # --------------------------------
+          # 7️⃣ Occasional BIG commit
+          # --------------------------------
+          BIG_COMMIT=false
+          if [ $((RANDOM % 12)) -eq 0 ]; then
+            BIG_COMMIT=true
+            COUNT=$((COUNT + 10))
+          fi
+
+          echo "Commits this run: $COUNT | Big commit: $BIG_COMMIT"
+
+          # -----------------------------
+          # 5️⃣ File lifecycle system
+          # -----------------------------
+          FILES=("activity_log.txt" "dev_notes.md" "internal.log")
+
+          # Rare file lifecycle events
+          ACTION=$((RANDOM % 20))
+
+          if [ $ACTION -eq 0 ]; then
+            NEW_FILE="notes_$(date +%s).md"
+            echo "# New notes file" > $NEW_FILE
+            FILES+=("$NEW_FILE")
+          elif [ $ACTION -eq 1 ]; then
+            if [ -f "internal.log" ]; then
+              mv internal.log "archive_$(date +%s).log"
+            fi
+          elif [ $ACTION -eq 2 ]; then
+            rm -f old_notes.md
+          fi
+
+          # -----------------------------
+          # Commit loop
+          # -----------------------------
           for ((i=1; i<=COUNT; i++))
           do
-            RAND_MSG=${msgs[$RANDOM % ${#msgs[@]}]}
-            
-            # File me kuch likhna padega taaki change detect ho
-            echo "Log: $(date) - Work ID: $RANDOM" >> activity_log.txt
-            
-            git add activity_log.txt
-            git commit -m "$RAND_MSG"
+            FILE=${FILES[$RANDOM % ${#FILES[@]}]}
+            MSG=${MSGS[$RANDOM % ${#MSGS[@]}]}
+
+            echo "$(date) :: $RANDOM :: activity" >> $FILE
+            git add .
+            git commit -m "$MSG"
+
+            sleep $((RANDOM % 90 + 30))   # Micro delay
           done
 
       - name: Push Changes
