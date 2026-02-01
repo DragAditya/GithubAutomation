@@ -41,7 +41,8 @@ logs/
  └── internal.log
 notes/
  └── dev_notes.md
-README.md
+```
+
 <!-- AI_ENGINE_STATS_START -->
 ## 🤖 AI Engine Stats
 Last Update: Sun Feb  1 12:01:42 IST 2026
