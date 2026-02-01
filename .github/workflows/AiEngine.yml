@@ -16,6 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # ----------------------
       # Install tools
@@ -32,7 +34,7 @@ jobs:
           git config --global user.email "waghaditya312@gmail.com"
 
       # ----------------------
-      # Ensure files exist (SAFE)
+      # Ensure files
       # ----------------------
       - name: Ensure Files
         run: |
@@ -60,9 +62,7 @@ jobs:
       # ----------------------
       - name: Init CSV
         run: |
-          if [ ! -f AI_ENGINE.csv ]; then
-            echo "DATE,TIME,MODE,COMMITS,FILES,PUSH" > AI_ENGINE.csv
-          fi
+          [ -f AI_ENGINE.csv ] || echo "DATE,TIME,MODE,COMMITS,FILES,PUSH" > AI_ENGINE.csv
 
       # ----------------------
       # Work hour check (IST)
@@ -75,30 +75,30 @@ jobs:
           fi
 
       # ----------------------
-      # Lazy mode 20%
+      # Lazy mode
       # ----------------------
       - name: Lazy Mode
+        id: lazy
         run: |
           if [ $((RANDOM % 10)) -lt 2 ]; then
             echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),lazy,0,-,-" >> AI_ENGINE.csv
+            echo "lazy=true" >> $GITHUB_OUTPUT
             exit 0
           fi
+          echo "lazy=false" >> $GITHUB_OUTPUT
 
       # ----------------------
-      # Mode select 60/25/15
+      # Mode select
       # ----------------------
       - name: Select Mode
         id: mode
+        if: steps.lazy.outputs.lazy == 'false'
         run: |
           R=$((RANDOM % 100))
 
-          if [ "$R" -lt 60 ]; then
-            MODE="commit"
-          elif [ "$R" -lt 85 ]; then
-            MODE="branch_pr"
-          else
-            MODE="issue"
-          fi
+          if [ "$R" -lt 60 ]; then MODE="commit";
+          elif [ "$R" -lt 85 ]; then MODE="branch_pr";
+          else MODE="issue"; fi
 
           echo "mode=$MODE" >> $GITHUB_OUTPUT
 
@@ -108,6 +108,8 @@ jobs:
       - name: Commit Mode
         if: steps.mode.outputs.mode == 'commit'
         run: |
+          git pull --rebase || true
+
           FILES=("ai.py" "utils.js" "config.json" "notes.md")
 
           COMMITS=0
@@ -140,8 +142,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH="feature-$RANDOM"
+          git pull --rebase || true
 
+          BRANCH="feature-$(date +%s)-$RANDOM"
           git checkout -b "$BRANCH"
 
           echo "console.log('update');" >> mod.js
@@ -153,7 +156,7 @@ jobs:
             --title "Auto PR" \
             --body "AI improvement" \
             --base main \
-            --head "$BRANCH" || true
+            --head "$BRANCH" || echo "PR failed"
 
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),PR,1,mod.js,OK" >> AI_ENGINE.csv
 
@@ -167,12 +170,12 @@ jobs:
         run: |
           gh issue create \
             --title "Auto improvement" \
-            --body "Planned by AI" || true
+            --body "Planned by AI" || echo "Issue failed"
 
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),issue,0,-,-" >> AI_ENGINE.csv
 
       # ----------------------
-      # Update README dashboard
+      # Update README
       # ----------------------
       - name: Update README
         run: |
