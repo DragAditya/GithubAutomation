@@ -1,0 +1,185 @@
+name: AiEngine
+
+on:
+  schedule:
+    - cron: "0 */1 * * *"
+  workflow_dispatch:
+
+jobs:
+  human-sim:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ----------------------
+      # Install tools
+      # ----------------------
+      - run: sudo apt-get update && sudo apt-get install -y jq gh
+
+      # ----------------------
+      # Git identity
+      # ----------------------
+      - run: |
+          git config --global user.name "dragaditya"
+          git config --global user.email "waghaditya312@gmail.com"
+
+      # ----------------------
+      # Init CSV log
+      # ----------------------
+      - name: Init Log
+        run: |
+          if [ ! -f AI_ENGINE.csv ]; then
+            echo "DATE,TIME,MODE,COMMITS,FILES,PUSH" >> AI_ENGINE.csv
+          fi
+
+      # ----------------------
+      # Work hours (IST)
+      # ----------------------
+      - name: Work Hour Check
+        run: |
+          HOUR=$(TZ="Asia/Kolkata" date +%H)
+          if [ $HOUR -lt 9 ] || [ $HOUR -gt 23 ]; then
+            exit 0
+          fi
+
+      # ----------------------
+      # Lazy mode 20%
+      # ----------------------
+      - name: Lazy Mode
+        run: |
+          if [ $((RANDOM % 10)) -lt 2 ]; then
+            echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),lazy,0,-,-" >> AI_ENGINE.csv
+            exit 0
+          fi
+
+      # ----------------------
+      # Mode selector 60/25/15
+      # ----------------------
+      - name: Select Mode
+        id: mode
+        run: |
+          R=$((RANDOM % 100))
+
+          if [ $R -lt 60 ]; then
+            MODE="commit"
+          elif [ $R -lt 85 ]; then
+            MODE="branch_pr"
+          else
+            MODE="issue"
+          fi
+
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+
+      # ----------------------
+      # Commit Mode
+      # ----------------------
+      - name: AI Commit Engine
+        if: steps.mode.outputs.mode == 'commit'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+
+          git pull --rebase || true
+
+          FILES=("ai.py" "utils.js" "config.json" "notes.md")
+
+          pick_file() {
+            echo ${FILES[$RANDOM % ${#FILES[@]}]}
+          }
+
+          COMMITS=0
+          FILE_EDITED=""
+
+          COUNT=$((RANDOM % 3 + 1))
+
+          for i in $(seq 1 $COUNT); do
+            F=$(pick_file)
+            echo "// tweak $RANDOM" >> "$F"
+            FILE_EDITED="$FILE_EDITED|$F"
+
+            git add .
+
+            if ! git diff --cached --quiet; then
+              git commit -m "minor tweak $(date +%H:%M)"
+              COMMITS=$((COMMITS+1))
+            fi
+          done
+
+          if git push; then PUSH="OK"; else PUSH="NO"; fi
+
+          echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),commit,$COMMITS,$FILE_EDITED,$PUSH" >> AI_ENGINE.csv
+
+      # ----------------------
+      # Branch + PR Mode
+      # ----------------------
+      - name: Branch PR
+        if: steps.mode.outputs.mode == 'branch_pr'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+
+          BRANCH=feature-$(date +%s)-$RANDOM
+          git checkout -b "$BRANCH"
+
+          echo "console.log('AI update');" >> mod.js
+          git add .
+          git commit -m "flow update"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "Auto PR" \
+            --body "AI improvement" \
+            --base main \
+            --head "$BRANCH" || true
+
+          echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),PR,1,mod.js,OK" >> AI_ENGINE.csv
+
+      # ----------------------
+      # Issue Mode
+      # ----------------------
+      - name: Issue Mode
+        if: steps.mode.outputs.mode == 'issue'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+
+          gh issue create \
+            --title "Auto improvement" \
+            --body "Planned by AI" || true
+
+          echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),issue,0,-,-" >> AI_ENGINE.csv
+
+      # ----------------------
+      # README Dashboard
+      # ----------------------
+      - name: Update README
+        run: |
+
+          TOTAL_COMMITS=$(awk -F, 'NR>1{sum+=$4} END{print sum+0}' AI_ENGINE.csv)
+          TOTAL_PR=$(grep -c ',PR,' AI_ENGINE.csv || true)
+          TOTAL_ISSUE=$(grep -c ',issue,' AI_ENGINE.csv || true)
+          TOTAL_LAZY=$(grep -c ',lazy,' AI_ENGINE.csv || true)
+
+          STATS="## 🤖 AI Engine Stats
+
+Last Update: $(TZ='Asia/Kolkata' date)
+
+- Total Commits: $TOTAL_COMMITS
+- Total PRs: $TOTAL_PR
+- Total Issues: $TOTAL_ISSUE
+- Lazy Runs: $TOTAL_LAZY
+"
+
+          awk '/AI_ENGINE_STATS_START/{print;print STATS;f=1;next}
+               /AI_ENGINE_STATS_END/{f=0}
+               !f' STATS="$STATS" README.md > tmp && mv tmp README.md
+
+      # ----------------------
+      # Save logs + README
+      # ----------------------
+      - name: Push Updates
+        run: |
+          git add AI_ENGINE.csv README.md
+          git commit -m "update AI engine logs" || true
+          git push || true
