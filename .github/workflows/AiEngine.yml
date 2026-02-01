@@ -17,44 +17,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: sudo apt-get update && sudo apt-get install -y jq gh
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq gh
 
-      - run: |
+      - name: Git identity
+        run: |
           git config --global user.name "dragaditya"
           git config --global user.email "waghaditya312@gmail.com"
 
+      # ----------------------
       # Ensure files exist
+      # ----------------------
       - name: Ensure Files
         run: |
           touch ai.py utils.js config.json notes.md README.md
+
           [ ! -s ai.py ] && echo 'print("hello")' > ai.py
           [ ! -s utils.js ] && echo 'console.log("hi")' > utils.js
           [ ! -s config.json ] && echo '{}' > config.json
           [ ! -s notes.md ] && echo 'notes' > notes.md
 
+      # ----------------------
       # README placeholder
+      # ----------------------
       - name: Fix README
         run: |
           if ! grep -q AI_ENGINE_STATS_START README.md; then
-            echo -e "\n## 🤖 AI Engine Stats\n<!-- AI_ENGINE_STATS_START -->\nLoading...\n<!-- AI_ENGINE_STATS_END -->" >> README.md
+            echo "" >> README.md
+            echo "## 🤖 AI Engine Stats" >> README.md
+            echo "<!-- AI_ENGINE_STATS_START -->" >> README.md
+            echo "Loading..." >> README.md
+            echo "<!-- AI_ENGINE_STATS_END -->" >> README.md
           fi
 
-      # CSV init
+      # ----------------------
+      # Init CSV
+      # ----------------------
       - name: Init CSV
         run: |
           if [ ! -f AI_ENGINE.csv ]; then
-            echo "DATE,TIME,MODE,COMMITS,FILES,PUSH" >> AI_ENGINE.csv
+            echo "DATE,TIME,MODE,COMMITS,FILES,PUSH" > AI_ENGINE.csv
           fi
 
-      # Work hours
+      # ----------------------
+      # Work hour check
+      # ----------------------
       - name: Work Hour Check
         run: |
           HOUR=$(TZ="Asia/Kolkata" date +%H)
-          if [ $HOUR -lt 9 ] || [ $HOUR -gt 23 ]; then
+          if [ "$HOUR" -lt 9 ] || [ "$HOUR" -gt 23 ]; then
             exit 0
           fi
 
-      # Lazy 20%
+      # ----------------------
+      # Lazy mode 20%
+      # ----------------------
       - name: Lazy Mode
         run: |
           if [ $((RANDOM % 10)) -lt 2 ]; then
@@ -62,17 +79,27 @@ jobs:
             exit 0
           fi
 
+      # ----------------------
       # Mode select
+      # ----------------------
       - name: Select Mode
         id: mode
         run: |
           R=$((RANDOM % 100))
-          if [ $R -lt 60 ]; then MODE="commit";
-          elif [ $R -lt 85 ]; then MODE="branch_pr";
-          else MODE="issue"; fi
+
+          if [ "$R" -lt 60 ]; then
+            MODE="commit"
+          elif [ "$R" -lt 85 ]; then
+            MODE="branch_pr"
+          else
+            MODE="issue"
+          fi
+
           echo "mode=$MODE" >> $GITHUB_OUTPUT
 
+      # ----------------------
       # Commit mode
+      # ----------------------
       - name: Commit Mode
         if: steps.mode.outputs.mode == 'commit'
         run: |
@@ -81,11 +108,14 @@ jobs:
           FILE_EDITED=""
 
           for i in 1 2; do
-            F=${FILES[$RANDOM % 4]}
+            IDX=$((RANDOM % 4))
+            F=${FILES[$IDX]}
+
             echo "// tweak $RANDOM" >> "$F"
             FILE_EDITED="$FILE_EDITED|$F"
 
             git add "$F"
+
             if ! git diff --cached --quiet; then
               git commit -m "minor tweak"
               COMMITS=$((COMMITS+1))
@@ -96,57 +126,69 @@ jobs:
 
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),commit,$COMMITS,$FILE_EDITED,OK" >> AI_ENGINE.csv
 
+      # ----------------------
       # Branch + PR
+      # ----------------------
       - name: Branch PR
         if: steps.mode.outputs.mode == 'branch_pr'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH=feature-$RANDOM
+          BRANCH="feature-$RANDOM"
+
           git checkout -b "$BRANCH"
+
           echo "console.log('update');" >> mod.js
           git add mod.js
           git commit -m "flow update"
           git push origin "$BRANCH"
 
-          gh pr create --title "Auto PR" --body "AI improvement" --base main --head "$BRANCH" || true
+          gh pr create \
+            --title "Auto PR" \
+            --body "AI improvement" \
+            --base main \
+            --head "$BRANCH" || true
 
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),PR,1,mod.js,OK" >> AI_ENGINE.csv
 
+      # ----------------------
       # Issue mode
+      # ----------------------
       - name: Issue Mode
         if: steps.mode.outputs.mode == 'issue'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue create --title "Auto improvement" --body "Planned by AI" || true
+          gh issue create \
+            --title "Auto improvement" \
+            --body "Planned by AI" || true
+
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),issue,0,-,-" >> AI_ENGINE.csv
 
-      # README stats FIXED
+      # ----------------------
+      # Update README
+      # ----------------------
       - name: Update README
         run: |
-
           TOTAL_COMMITS=$(awk -F, 'NR>1{sum+=$4} END{print sum+0}' AI_ENGINE.csv)
           TOTAL_PR=$(grep -c ',PR,' AI_ENGINE.csv || true)
           TOTAL_ISSUE=$(grep -c ',issue,' AI_ENGINE.csv || true)
           TOTAL_LAZY=$(grep -c ',lazy,' AI_ENGINE.csv || true)
 
-          cat <<EOF > stats.txt
-## 🤖 AI Engine Stats
+          sed -i '/AI_ENGINE_STATS_START/,/AI_ENGINE_STATS_END/d' README.md
 
-Last Update: $(TZ='Asia/Kolkata' date)
+          echo "<!-- AI_ENGINE_STATS_START -->" >> README.md
+          echo "## 🤖 AI Engine Stats" >> README.md
+          echo "Last Update: $(TZ='Asia/Kolkata' date)" >> README.md
+          echo "- Total Commits: $TOTAL_COMMITS" >> README.md
+          echo "- Total PRs: $TOTAL_PR" >> README.md
+          echo "- Total Issues: $TOTAL_ISSUE" >> README.md
+          echo "- Lazy Runs: $TOTAL_LAZY" >> README.md
+          echo "<!-- AI_ENGINE_STATS_END -->" >> README.md
 
-- Total Commits: $TOTAL_COMMITS
-- Total PRs: $TOTAL_PR
-- Total Issues: $TOTAL_ISSUE
-- Lazy Runs: $TOTAL_LAZY
-EOF
-
-          awk '/AI_ENGINE_STATS_START/{print;system("cat stats.txt");f=1;next}
-               /AI_ENGINE_STATS_END/{f=0}
-               !f' README.md > tmp && mv tmp README.md
-
-      # Push
+      # ----------------------
+      # Push updates
+      # ----------------------
       - name: Push Updates
         run: |
           git add .
