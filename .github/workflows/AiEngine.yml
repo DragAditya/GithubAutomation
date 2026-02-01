@@ -17,25 +17,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ----------------------
+      # Install tools
+      # ----------------------
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y jq gh
 
+      # ----------------------
+      # Git identity
+      # ----------------------
       - name: Git identity
         run: |
           git config --global user.name "dragaditya"
           git config --global user.email "waghaditya312@gmail.com"
 
       # ----------------------
-      # Ensure files exist
+      # Ensure files exist (SAFE)
       # ----------------------
       - name: Ensure Files
         run: |
-          touch ai.py utils.js config.json notes.md README.md
-
-          [ ! -s ai.py ] && echo 'print("hello")' > ai.py
-          [ ! -s utils.js ] && echo 'console.log("hi")' > utils.js
-          [ ! -s config.json ] && echo '{}' > config.json
-          [ ! -s notes.md ] && echo 'notes' > notes.md
+          [ -f ai.py ] || echo 'print("hello")' > ai.py
+          [ -f utils.js ] || echo 'console.log("hi")' > utils.js
+          [ -f config.json ] || echo '{}' > config.json
+          [ -f notes.md ] || echo 'notes' > notes.md
+          [ -f README.md ] || echo '# Repo' > README.md
 
       # ----------------------
       # README placeholder
@@ -60,7 +65,7 @@ jobs:
           fi
 
       # ----------------------
-      # Work hour check
+      # Work hour check (IST)
       # ----------------------
       - name: Work Hour Check
         run: |
@@ -80,7 +85,7 @@ jobs:
           fi
 
       # ----------------------
-      # Mode select
+      # Mode select 60/25/15
       # ----------------------
       - name: Select Mode
         id: mode
@@ -104,6 +109,7 @@ jobs:
         if: steps.mode.outputs.mode == 'commit'
         run: |
           FILES=("ai.py" "utils.js" "config.json" "notes.md")
+
           COMMITS=0
           FILE_EDITED=""
 
@@ -166,7 +172,7 @@ jobs:
           echo "$(TZ='Asia/Kolkata' date '+%F'),$(TZ='Asia/Kolkata' date '+%H:%M'),issue,0,-,-" >> AI_ENGINE.csv
 
       # ----------------------
-      # Update README
+      # Update README dashboard
       # ----------------------
       - name: Update README
         run: |
