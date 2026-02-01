@@ -1,3 +1,11 @@
+## 🤖 AI Engine Stats
+<!-- AI_ENGINE_STATS_START -->
+Loading...
+<!-- AI_ENGINE_STATS_END -->
+
+---
+---
+
 # 🚀 CommitPulse
 
 > Keep your GitHub contributions alive — automatically, consistently, and cleanly.
