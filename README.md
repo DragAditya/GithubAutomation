@@ -1,6 +1,4 @@
 ## 🤖 AI Engine Stats
-<!-- AI_ENGINE_STATS_START -->
-<!-- AI_ENGINE_STATS_END -->
 
 ---
 
@@ -44,3 +42,11 @@ logs/
 notes/
  └── dev_notes.md
 README.md
+<!-- AI_ENGINE_STATS_START -->
+## 🤖 AI Engine Stats
+Last Update: Sun Feb  1 12:01:42 IST 2026
+- Total Commits: 4
+- Total PRs: 0
+- Total Issues: 0
+- Lazy Runs: 1
+<!-- AI_ENGINE_STATS_END -->
