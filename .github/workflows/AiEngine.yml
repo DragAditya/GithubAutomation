@@ -96,8 +96,8 @@ jobs:
         run: |
           R=$((RANDOM % 100))
 
-          if [ "$R" -lt 60 ]; then MODE="commit";
-          elif [ "$R" -lt 85 ]; then MODE="branch_pr";
+          if [ "$R" -lt 30 ]; then MODE="commit";
+          elif [ "$R" -lt 55 ]; then MODE="branch_pr";
           else MODE="issue"; fi
 
           echo "mode=$MODE" >> $GITHUB_OUTPUT
